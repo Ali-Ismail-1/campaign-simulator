@@ -8,14 +8,14 @@ import { env } from '@/utils/env';
 
 // Initialize the LLM
 const llm = new ChatOpenAI({
-    apiKey: env.OPEN_API_KEY,
+    apiKey: env.OPENAI_API_KEY,
     model: 'gpt-4o-mini',
     temperature: 0.7,
 });
 
 // Initialize the embeddings
 const embeddings = new OpenAIEmbeddings({
-    apiKey: env.OPEN_API_KEY,
+    apiKey: env.OPENAI_API_KEY,
     model: 'text-embedding-3-small',
 });
 
@@ -40,7 +40,7 @@ Answer:`);
 // Build the RAG chain
 export const ragChain = RunnableSequence.from([
     {
-        conext: async (input: {question: string}) => {
+        context: async (input: {question: string}) => {
             const docs = await retriever.invoke(input.question);
             return docs.map(doc => doc.pageContent).join('\n\n');
         },
