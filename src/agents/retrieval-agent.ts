@@ -5,7 +5,7 @@ import { embedQuery, retrieveDocuments } from "@/lib/rag/chain";
 
 export class RetrievalAgent {
     private llm: ChatOpenAI;
-    private name = "Retrieval Agent";
+    private name = "RetrievalAgent";
 
     constructor() {
         this.llm = new ChatOpenAI({
