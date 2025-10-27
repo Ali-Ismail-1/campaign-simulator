@@ -185,16 +185,20 @@ export const ragChain = RunnableSequence.from([
         context: async (input: {question: string}) => {
             console.log('Retrieving documents for question:', input.question);
 
-            // embed the questions using the sentence transformer
+            // 1. Embed the question
             const queryEmbedding = await embedQuery(input.question);
             console.log('Embedded query:', queryEmbedding);
 
+            // 2. Retrieve relevant documents from Pinecone
+            const results = await retrieveDocuments(queryEmbedding, 8);
 
-            const results = await retrieveDocuments(queryEmbedding, 4);
-
-            // THIS IS WHERE YOU REDACT DATA FROM LLM CONTEXT
+            // 3. Rerank results based on keywords
+            const rerankedResults = await rerankResults(input.question, results.matches);
+            const topResults = rerankedResults.slice(0, 4);
+            
+            // 4. Sanitize the context for the LLM
             return results.matches
-                .map(match => {
+                .map((match: any) => {
                     const text = match?.metadata?.text;
                     return typeof text === 'string' ? sanitizeForLLM(text) : '';
                 })
