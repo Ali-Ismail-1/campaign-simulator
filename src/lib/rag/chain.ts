@@ -13,12 +13,19 @@ import { env } from '@/utils/env';
 import { pipeline } from '@xenova/transformers';
 
 
-
 // ============================================
 // STEP 1: EMBEDDING COMPONENT
 // Purpose: Convert text questions into vector embeddings
+// 
+// WHY XENOVA? We use a local model instead of OpenAI embeddings because:
+// 1. Privacy - embeddings run locally, no data sent to OpenAI
+// 2. Cost - completely free, no API charges
+// 3. Speed - after initial download, it's faster
+// 
+// CRITICAL: This model outputs 384-dimensional vectors.
+// Your Pinecone index MUST be created with dimension=384
 // Input: string (question)
-// Output: number[] (embedding vector)
+// Output: number[] (384-dimensional embedding vector)
 // ============================================
 let embedder: any = null;
 
@@ -87,7 +94,6 @@ async function retrieveDocuments(embeddedQuestion: number[], topK: number = 4) {
 }
 
 
-
 // ============================================
 // STEP 4: CONTEXT PROCESSING
 // Purpose: Sanitize and prepare retrieved documents
@@ -116,7 +122,6 @@ function sanitizeForLLM(text: string, options = {
     
     return cleaned;
 }
-
 
 
 // ============================================
