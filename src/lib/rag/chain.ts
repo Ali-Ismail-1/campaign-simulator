@@ -95,7 +95,7 @@ async function retrieveDocuments(embeddedQuestion: number[], topK: number = 4) {
     });
     
     // Filter by relevance threshold
-    const relevantDocs = results.matches.filter((m: any) => m.score! > 0.7);
+    const relevantDocs = results.matches.filter((m: any) => m.score! > 0.01);
     console.log(`Filtered to ${relevantDocs.length}/${results.matches.length} relevant documents`);
 
     return relevantDocs;
@@ -127,7 +127,6 @@ async function rerankResults(query: string, results: any[]) {
     }).sort((a, b) => b.boostedScore - a.boostedScore);
 }
 
-
 function sanitizeForLLM(text: string, options = {
     removeSSN: true,
     removeDOB: true,
@@ -150,6 +149,22 @@ function sanitizeForLLM(text: string, options = {
     return cleaned;
 }
 
+function truncateContext(docs: string[], maxTokens: number = 3000): string {
+    // Rough estimate: 1 token ≈ 4 characters
+    const maxChars = maxTokens * 4;
+    let result = '';
+    
+    for (const doc of docs) {
+        if ((result + doc).length > maxChars) {
+            // Add truncated doc and stop
+            result += doc.substring(0, maxChars - result.length) + '...';
+            break;
+        }
+        result += doc + '\n\n';
+    }
+    
+    return result;
+}
 
 // ============================================
 // STEP 5: GENERATION COMPONENT
@@ -193,22 +208,22 @@ export const ragChain = RunnableSequence.from([
             const results = await retrieveDocuments(queryEmbedding, 8);
 
             // 3. Rerank results based on keywords
-            const rerankedResults = await rerankResults(input.question, results.matches);
-            const topResults = rerankedResults.slice(0, 4);
+            const rerankedResults = await rerankResults(input.question, results);
+            const topResults = rerankedResults.slice(0, 6);
             
-            // 4. Sanitize the context for the LLM
-            return results.matches
-                .map((match: any) => {
+            // 4. Sanitize each doc
+            const sanitizedDocs = topResults
+                .map(match => {
                     const text = match?.metadata?.text;
                     return typeof text === 'string' ? sanitizeForLLM(text) : '';
                 })
-                .filter((text: string) => text.length > 0)
-                .join('\n\n');
-            // const vectorStore = await getVectorStore();
-            // const retriever = vectorStore.asRetriever({ k: 4 });
-            // const docs = await retriever.invoke(input.question);
-            // console.log('Retrieved documents:', docs.length);
-            // return docs.map(doc => doc.pageContent).join('\n\n');
+                .filter(Boolean);
+
+            // 5. Truncate context
+            const truncatedContext = truncateContext(sanitizedDocs, 3000);
+
+            // 6. Return safe, bounded context
+            return truncatedContext;
         },
         question: (input: {question: string}) => input.question,
     },
