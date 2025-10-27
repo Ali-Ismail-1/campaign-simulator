@@ -231,3 +231,6 @@ export const ragChain = RunnableSequence.from([
     llm,
     new StringOutputParser(),
 ]);
+
+
+export { embedQuery, retrieveDocuments, rerankResults, sanitizeForLLM, truncateContext };
