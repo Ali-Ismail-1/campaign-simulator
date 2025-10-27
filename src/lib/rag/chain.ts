@@ -88,9 +88,17 @@ async function retrieveDocuments(embeddedQuestion: number[], topK: number = 4) {
         includeMetadata: true,
     });
     
+    // Log relevance scores
+    console.log('Retrieval Quality Metrics:');
+    results.matches.forEach((match: any, idx: number) => {
+        console.log(`Document ${idx + 1}: Relevance Score = ${match.score}, id = ${match.id}`);
+    });
     
-    console.log(`Retrieved ${results.matches.length} documents`);
-    return results;
+    // Filter by relevance threshold
+    const relevantDocs = results.matches.filter((m: any) => m.score! > 0.7);
+    console.log(`Filtered to ${relevantDocs.length}/${results.matches.length} relevant documents`);
+
+    return relevantDocs;
 }
 
 
