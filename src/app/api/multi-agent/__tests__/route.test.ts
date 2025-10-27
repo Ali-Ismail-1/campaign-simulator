@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { POST } from '../route';
 
+vi.mock('@/agents/orchestrator', () => ({
+    MultiAgentOrchestrator: class {
+      async process(_: string) {
+        return { docs: [{ id: 'doc1', score: 0.9 }], stats: { count: 1, avgScore: 0.9 } };
+      }
+    }
+  }));
+  
 describe('/api/multi-agent', () => {
     it('should return 400 if query is missing', async () => {
         const req = new Request('http://localhost:3000/api/multi-agent', {

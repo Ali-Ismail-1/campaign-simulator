@@ -1,5 +1,33 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MultiAgentOrchestrator } from '../orchestrator';
+
+vi.mock('../router-agent', () => ({
+    RouterAgent: class {
+      async route(q: string) {
+        return q.toLowerCase().includes('how many') ? 'analysis' : 'retrieval';
+      }
+    }
+  }));
+  
+  vi.mock('@langchain/openai', () => ({
+    ChatOpenAI: class {
+      async invoke(_: any) {
+        return { content: 'ok' };
+      }
+    }
+  }));
+  
+  vi.mock('@/lib/rag/chain', () => ({
+    embedQuery: vi.fn().mockResolvedValue(new Array(384).fill(0.1)),
+    retrieveDocuments: vi.fn().mockResolvedValue([
+      { id: 'doc1', score: 0.8 },
+      { id: 'doc2', score: 0.6 }
+    ]),
+  }));
+  
+  vi.mock('@/utils/env', () => ({
+    env: { OPENAI_MODEL: 'gpt-4o-mini', LLM_TEMPERATURE: 0 }
+  }));
 
 describe('MultiAgentOrchestrator', () => {
     let orchestrator: MultiAgentOrchestrator;
