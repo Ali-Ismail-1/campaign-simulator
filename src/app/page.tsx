@@ -30,7 +30,9 @@ export default function Home() {
 
       setAnswer(data.answer);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const errorMsg = err instanceof Error ? err.message : 'Something went wrong';
+      console.error('Frontend error:', err);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
