@@ -7,14 +7,13 @@ import { index } from '@/lib/pinecone/client';
 import { env } from '@/utils/env';
 import { pipeline } from '@xenova/transformers';
 
-// Initialize the LLM
-const llm = new ChatOpenAI({
-    apiKey: env.OPENAI_API_KEY,
-    model: 'gpt-4o-mini',
-    temperature: 0.7,
-});
 
-// Initialize the sentence transformer
+
+// ============================================
+// SEGMENT 1: Embedding (Text → Vector)
+// Input: string (question)
+// Output: number[] (embedding vector)
+// ============================================
 let embedder: any = null;
 
 async function getEmbedder() {
@@ -58,7 +57,19 @@ function getVectorStore() {
 
 // Create the retriever
 //const retriever = vectorStore.asRetriever({ k: 4 });
+// Initialize the LLM
 
+
+// ============================================
+// SEGMENT 4: Generation (Context + Q → Answer)
+// Input: { context: string, question: string }
+// Output: string (answer)
+// ============================================
+const llm = new ChatOpenAI({
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_MODEL,
+    temperature: env.LLM_TEMPERATURE,
+});
 // Create prompt template
 const prompt = ChatPromptTemplate.fromTemplate(`
 Answer the question based only on the following context:
@@ -69,7 +80,11 @@ Question: {question}
 
 Answer:`);
 
-// Build the RAG chain
+// ============================================
+// SEGMENT 5: Build the RAG chain
+// Input: { question: string }
+// Output: string (answer)
+// ============================================
 export const ragChain = RunnableSequence.from([
     {
         context: async (input: {question: string}) => {
@@ -88,9 +103,13 @@ export const ragChain = RunnableSequence.from([
             console.log('Pinecone query results:', results);
 
 
+            // THIS IS WHERE YOU REDACT DATA FROM LLM CONTEXT
             return results.matches
-                .map(match => match.metadata?.text || '')
-                .filter((text:any) => typeof text === 'string' && text.length > 0)
+                .map(match => {
+                    const text = match?.metadata?.text;
+                    return typeof text === 'string' ? sanitizeForLLM(text) : '';
+                })
+                .filter((text: string) => text.length > 0)
                 .join('\n\n');
             // const vectorStore = await getVectorStore();
             // const retriever = vectorStore.asRetriever({ k: 4 });
@@ -104,3 +123,31 @@ export const ragChain = RunnableSequence.from([
     llm,
     new StringOutputParser(),
 ]);
+
+
+// ============================================
+// Helper Functions: Sanitize for LLM (Text → Text)
+// Input: string (text)
+// Output: string (text)
+// ============================================
+function sanitizeForLLM(text: string, options = {
+    removeSSN: true,
+    removeDOB: true,
+    removeSalary: true
+}): string {
+    let cleaned = text;
+    
+    if (options.removeSSN) {
+        cleaned = cleaned.replace(/SSN:?\s*\d{3}-\d{2}-\d{4}/gi, 'SSN: [REDACTED]');
+    }
+    
+    if (options.removeDOB) {
+        cleaned = cleaned.replace(/DOB:?\s*\d{2}\/\d{2}\/\d{4}/gi, 'DOB: [REDACTED]');
+    }
+    
+    if (options.removeSalary) {
+        cleaned = cleaned.replace(/Salary:?\s*\$[\d,]+/gi, 'Salary: [REDACTED]');
+    }
+    
+    return cleaned;
+}
