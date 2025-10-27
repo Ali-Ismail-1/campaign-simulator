@@ -109,6 +109,25 @@ async function retrieveDocuments(embeddedQuestion: number[], topK: number = 4) {
 // Input: string (raw text from database)
 // Output: string (sanitized text)
 // ============================================
+
+// Add a reranking step, boost score if keywords match
+async function rerankResults(query: string, results: any[]) {
+    // Simple keyword boost for exact matches
+    const keywords = query.toLowerCase().split(' ');
+    
+    return results.map(result => {
+        const text = result.metadata?.text?.toLowerCase() || '';
+        const keywordMatches = keywords.filter(kw => text.includes(kw)).length;
+        
+        return {
+            ...result,
+            // Boost score if keywords match
+            boostedScore: result.score! + (keywordMatches * 0.1)
+        };
+    }).sort((a, b) => b.boostedScore - a.boostedScore);
+}
+
+
 function sanitizeForLLM(text: string, options = {
     removeSSN: true,
     removeDOB: true,
